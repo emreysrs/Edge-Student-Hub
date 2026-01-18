@@ -1,6 +1,8 @@
 "use client"
 
 import { useState } from "react"
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { createBooking } from "@/lib/bookings"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -88,6 +90,17 @@ export default function AdminDashboard() {
       amount: "€420/month"
     }
   ])
+  const [open, setOpen] = useState(false)
+  const [newBooking, setNewBooking] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    room: "",
+    checkIn: "",
+    status: "pending",
+    amount: ""
+  })
+  const [loading, setLoading] = useState(false)
   const { toast } = useToast()
 
   const stats = [
@@ -176,6 +189,43 @@ export default function AdminDashboard() {
     }
   }
 
+  const handleNewBookingChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setNewBooking({ ...newBooking, [e.target.name]: e.target.value })
+  }
+
+  const handleNewBookingSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    try {
+      // Basit validasyon
+      if (!newBooking.name || !newBooking.email || !newBooking.room || !newBooking.checkIn) {
+        toast({ title: "Eksik bilgi", description: "Tüm alanları doldurun.", variant: "destructive" })
+        setLoading(false)
+        return
+      }
+      // createBooking fonksiyonunu çağır
+      const { data, error } = await createBooking({
+        user_id: "admin-panel-manual", // gerçek user_id yerine dummy (veya seçilebilir)
+        room_id: newBooking.room,
+        check_in_date: newBooking.checkIn,
+        check_out_date: newBooking.checkIn, // örnek, gerçek formda eklenmeli
+        status: "confirmed",
+        total_amount: 0,
+        payment_status: "pending"
+      })
+      if (error) {
+        toast({ title: "Hata", description: error, variant: "destructive" })
+      } else {
+        toast({ title: "Başarılı", description: "Yeni rezervasyon eklendi!" })
+        setBookings([...bookings, { ...newBooking, id: Date.now() }])
+        setOpen(false)
+        setNewBooking({ name: "", email: "", phone: "", room: "", checkIn: "", status: "pending", amount: "" })
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -191,10 +241,25 @@ export default function AdminDashboard() {
                 <Calendar className="w-4 h-4 mr-2" />
                 Export Report
               </Button>
-              <Button className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white font-semibold">
-                <Users className="w-4 h-4 mr-2" />
-                New Booking
-              </Button>
+              <Dialog open={open} onOpenChange={setOpen}>
+                <DialogTrigger asChild>
+                  <Button className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white font-semibold">
+                    <Users className="w-4 h-4 mr-2" />
+                    New Booking
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogTitle>New Booking</DialogTitle>
+                  <form onSubmit={handleNewBookingSubmit} className="space-y-4">
+                    <Input name="name" placeholder="Name" value={newBooking.name} onChange={handleNewBookingChange} required />
+                    <Input name="email" placeholder="Email" value={newBooking.email} onChange={handleNewBookingChange} required />
+                    <Input name="phone" placeholder="Phone" value={newBooking.phone} onChange={handleNewBookingChange} />
+                    <Input name="room" placeholder="Room ID" value={newBooking.room} onChange={handleNewBookingChange} required />
+                    <Input name="checkIn" type="date" placeholder="Check-in" value={newBooking.checkIn} onChange={handleNewBookingChange} required />
+                    <Button type="submit" disabled={loading} className="w-full">{loading ? "Adding..." : "Add Booking"}</Button>
+                  </form>
+                </DialogContent>
+              </Dialog>
             </div>
           </div>
         </div>
