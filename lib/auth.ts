@@ -1,5 +1,13 @@
 import { supabase } from './supabase'
 import { User, Session } from '@supabase/supabase-js'
+import { 
+  sanitizeEmail, 
+  sanitizeText, 
+  sanitizePhone, 
+  validatePassword, 
+  validateEmail,
+  validatePhoneNumber 
+} from './security'
 
 export interface SignUpData {
   email: string
@@ -12,13 +20,40 @@ export interface SignUpData {
 // Sign up new user
 export async function signUp(data: SignUpData): Promise<{ user: User | null; error: string | null }> {
   try {
+    // Input validasyonu ve sanitizasyon
+    const sanitizedEmail = sanitizeEmail(data.email)
+    const sanitizedFirstName = sanitizeText(data.firstName)
+    const sanitizedLastName = sanitizeText(data.lastName)
+    const sanitizedPhone = data.phone ? sanitizePhone(data.phone) : undefined
+
+    // Email validasyonu
+    if (!validateEmail(sanitizedEmail)) {
+      return { user: null, error: 'Geçersiz email adresi' }
+    }
+
+    // İsim validasyonu
+    if (sanitizedFirstName.length < 2 || sanitizedLastName.length < 2) {
+      return { user: null, error: 'İsim ve soyisim en az 2 karakter olmalıdır' }
+    }
+
+    // Şifre güvenlik kontrolü
+    const passwordValidation = validatePassword(data.password)
+    if (!passwordValidation.valid) {
+      return { user: null, error: passwordValidation.errors[0] }
+    }
+
+    // Telefon numarası validasyonu (opsiyonel)
+    if (sanitizedPhone && !validatePhoneNumber(sanitizedPhone)) {
+      return { user: null, error: 'Geçersiz telefon numarası formatı' }
+    }
+
     const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: data.email,
+      email: sanitizedEmail,
       password: data.password,
       options: {
         data: {
-          full_name: `${data.firstName} ${data.lastName}`,
-          phone: data.phone,
+          full_name: `${sanitizedFirstName} ${sanitizedLastName}`,
+          phone: sanitizedPhone,
           role: 'student'
         }
       }
@@ -35,8 +70,21 @@ export async function signUp(data: SignUpData): Promise<{ user: User | null; err
 // Sign in existing user
 export async function signIn(email: string, password: string): Promise<{ user: User | null; session: Session | null; error: string | null }> {
   try {
+    // Input sanitizasyonu
+    const sanitizedEmail = sanitizeEmail(email)
+
+    // Email validasyonu
+    if (!validateEmail(sanitizedEmail)) {
+      return { user: null, session: null, error: 'Geçersiz email adresi' }
+    }
+
+    // Şifre minimum uzunluk kontrolü
+    if (password.length < 8) {
+      return { user: null, session: null, error: 'Geçersiz şifre' }
+    }
+
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-      email,
+      email: sanitizedEmail,
       password,
     })
 

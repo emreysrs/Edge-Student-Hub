@@ -1,4 +1,11 @@
 import { supabase } from './supabase'
+import { 
+  sanitizeEmail, 
+  sanitizeText, 
+  sanitizePhone, 
+  validateEmail,
+  validatePhoneNumber 
+} from './security'
 
 // Create contact message
 export async function createContactMessage(messageData: {
@@ -9,9 +16,44 @@ export async function createContactMessage(messageData: {
   message: string
 }) {
   try {
+    // Input sanitizasyonu
+    const sanitizedName = sanitizeText(messageData.name)
+    const sanitizedEmail = sanitizeEmail(messageData.email)
+    const sanitizedPhone = messageData.phone ? sanitizePhone(messageData.phone) : undefined
+    const sanitizedSubject = sanitizeText(messageData.subject)
+    const sanitizedMessage = sanitizeText(messageData.message)
+
+    // Validasyon
+    if (sanitizedName.length < 2) {
+      return { data: null, error: 'İsim en az 2 karakter olmalıdır' }
+    }
+
+    if (!validateEmail(sanitizedEmail)) {
+      return { data: null, error: 'Geçersiz email adresi' }
+    }
+
+    if (sanitizedPhone && !validatePhoneNumber(sanitizedPhone)) {
+      return { data: null, error: 'Geçersiz telefon numarası' }
+    }
+
+    if (sanitizedSubject.length < 3 || sanitizedSubject.length > 200) {
+      return { data: null, error: 'Konu 3-200 karakter arasında olmalıdır' }
+    }
+
+    if (sanitizedMessage.length < 10 || sanitizedMessage.length > 2000) {
+      return { data: null, error: 'Mesaj 10-2000 karakter arasında olmalıdır' }
+    }
+
     const { data, error } = await supabase
       .from('contact_messages')
-      .insert([{ ...messageData, status: 'new' }])
+      .insert([{ 
+        name: sanitizedName,
+        email: sanitizedEmail,
+        phone: sanitizedPhone,
+        subject: sanitizedSubject,
+        message: sanitizedMessage,
+        status: 'new' 
+      }])
       .select()
       .single()
 

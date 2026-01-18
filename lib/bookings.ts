@@ -1,9 +1,42 @@
 import { supabase } from './supabase'
 import { Booking } from '@/types/database'
+import { 
+  validateBookingDates, 
+  validatePrice, 
+  validateUUID 
+} from './security'
 
 // Create new booking
 export async function createBooking(bookingData: Partial<Booking>) {
   try {
+    // Validasyonlar
+    if (!bookingData.user_id || !validateUUID(bookingData.user_id)) {
+      return { data: null, error: 'Geçersiz kullanıcı ID' }
+    }
+
+    if (!bookingData.room_id || !validateUUID(bookingData.room_id)) {
+      return { data: null, error: 'Geçersiz oda ID' }
+    }
+
+    if (!bookingData.check_in_date || !bookingData.check_out_date) {
+      return { data: null, error: 'Giriş ve çıkış tarihleri gereklidir' }
+    }
+
+    // Tarih validasyonu
+    const dateValidation = validateBookingDates(
+      bookingData.check_in_date,
+      bookingData.check_out_date
+    )
+
+    if (!dateValidation.valid) {
+      return { data: null, error: dateValidation.error || 'Geçersiz tarihler' }
+    }
+
+    // Fiyat validasyonu
+    if (!bookingData.total_amount || !validatePrice(bookingData.total_amount)) {
+      return { data: null, error: 'Geçersiz fiyat' }
+    }
+
     const { data, error } = await supabase
       .from('bookings')
       .insert([bookingData])
