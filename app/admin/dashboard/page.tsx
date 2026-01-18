@@ -73,26 +73,36 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(false)
   const { toast } = useToast()
 
+  // Dinamik dashboard istatistikleri
+  const now = new Date()
+  const thisMonth = now.getMonth()
+  const thisYear = now.getFullYear()
+  const totalBookings = bookings.length
+  const occupiedRooms = bookings.filter(b => b.status === "confirmed").length
+  const pendingApplications = bookings.filter(b => b.status === "pending").length
+  const revenueThisMonth = bookings
+    .filter(b => b.status === "confirmed" && new Date(b.check_in_date).getMonth() === thisMonth && new Date(b.check_in_date).getFullYear() === thisYear)
+    .reduce((sum, b) => sum + (b.total_amount || 0), 0)
   const stats = [
     {
       title: "Total Bookings",
-      value: "45",
-      change: "+20%",
+      value: totalBookings.toString(),
+      change: "",
       trend: "up",
       icon: Calendar,
       color: "text-blue-500"
     },
     {
       title: "Occupied Rooms",
-      value: "38/50",
-      change: "76% occupancy",
+      value: `${occupiedRooms}/50`,
+      change: `${Math.round((occupiedRooms/50)*100)}% occupancy`,
       trend: "up",
       icon: Home,
       color: "text-cyan-500"
     },
     {
       title: "Pending Applications",
-      value: "12",
+      value: pendingApplications.toString(),
       change: "Requires review",
       trend: "neutral",
       icon: Clock,
@@ -100,8 +110,8 @@ export default function AdminDashboard() {
     },
     {
       title: "Revenue This Month",
-      value: "€18,450",
-      change: "+15%",
+      value: `€${revenueThisMonth.toLocaleString()}`,
+      change: "",
       trend: "up",
       icon: DollarSign,
       color: "text-green-500"
