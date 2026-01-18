@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { subscribeToBookings } from "@/lib/bookings-realtime"
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { createBooking, getAllBookings, updateBookingStatus, deleteBooking } from "@/lib/bookings"
+import { supabase } from "@/lib/supabase"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -174,15 +175,46 @@ export default function AdminDashboard() {
     e.preventDefault()
     setLoading(true)
     try {
-      // Basit validasyon
       if (!newBooking.name || !newBooking.email || !newBooking.room || !newBooking.checkIn) {
         toast({ title: "Eksik bilgi", description: "Tüm alanları doldurun.", variant: "destructive" })
         setLoading(false)
         return
       }
-      // createBooking fonksiyonunu çağır
+      // 1. Kullanıcı var mı kontrol et
+      let userId = null
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', newBooking.email)
+        .single()
+      if (userData && userData.id) {
+        userId = userData.id
+      } else {
+        // 2. Yoksa yeni kullanıcı oluştur
+        const [firstName, ...rest] = newBooking.name.trim().split(' ')
+        const lastName = rest.join(' ') || '-'
+        const randomPassword = Math.random().toString(36).slice(-10) + 'Aa!1'
+        const { data: signUpData, error: signUpError } = await supabase.auth.admin.createUser({
+          email: newBooking.email,
+          password: randomPassword,
+          user_metadata: {
+            full_name: newBooking.name,
+            first_name: firstName,
+            last_name: lastName,
+            phone: newBooking.phone,
+            role: 'student'
+          }
+        })
+        if (signUpError || !signUpData?.user?.id) {
+          toast({ title: "Hata", description: signUpError?.message || "Kullanıcı oluşturulamadı", variant: "destructive" })
+          setLoading(false)
+          return
+        }
+        userId = signUpData.user.id
+      }
+      // 3. Rezervasyonu oluştur
       const { data, error } = await createBooking({
-        user_id: "admin-panel-manual", // gerçek user_id yerine dummy (veya seçilebilir)
+        user_id: userId,
         room_id: newBooking.room,
         check_in_date: newBooking.checkIn,
         check_out_date: newBooking.checkIn, // örnek, gerçek formda eklenmeli
