@@ -304,7 +304,7 @@ export default function AdminDashboard() {
                       <td className="py-4 px-4">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-cyan-500 rounded-full flex items-center justify-center text-white font-bold">
-                            {booking.name.split(' ').map(n => n[0]).join('')}
+                            {booking.name.split(' ').map((n: string) => n[0]).join('')}
                           </div>
                           <div>
                             <div className="font-semibold text-gray-900">{booking.name}</div>
