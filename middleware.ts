@@ -15,7 +15,8 @@ const MAX_AUTH_ATTEMPTS = 5 // 5 deneme/15 dakika
 function getRateLimitKey(req: NextRequest, prefix: string = 'general'): string {
   // IP adresini al (Vercel/production için)
   const forwarded = req.headers.get('x-forwarded-for')
-  const ip = forwarded ? forwarded.split(',')[0] : req.ip || 'unknown'
+  const realIp = req.headers.get('x-real-ip')
+  const ip = forwarded ? forwarded.split(',')[0] : (realIp || 'unknown')
   return `${prefix}:${ip}`
 }
 

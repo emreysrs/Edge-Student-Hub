@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -15,7 +15,7 @@ import { Check, Calendar, Home, User, CreditCard } from "lucide-react"
 
 type BookingStep = "dates" | "room" | "details" | "summary"
 
-export default function BookingPage() {
+function BookingContent() {
   const searchParams = useSearchParams()
   const preselectedRoomId = searchParams.get("roomId")
   
@@ -204,5 +204,13 @@ export default function BookingPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function BookingPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gradient-to-br from-blue-50 to-white py-12 px-4 flex items-center justify-center">Loading...</div>}>
+      <BookingContent />
+    </Suspense>
   )
 }
