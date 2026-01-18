@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { subscribeToBookings } from "@/lib/bookings-realtime"
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { createBooking } from "@/lib/bookings"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -37,6 +38,21 @@ import {
 } from "lucide-react"
 
 export default function AdminDashboard() {
+  useEffect(() => {
+    // Supabase realtime ile bookings tablosunu dinle
+    const channel = subscribeToBookings((payload) => {
+      if (payload.eventType === 'INSERT') {
+        setBookings(prev => [...prev, payload.new])
+      } else if (payload.eventType === 'DELETE') {
+        setBookings(prev => prev.filter(b => b.id !== payload.old.id))
+      } else if (payload.eventType === 'UPDATE') {
+        setBookings(prev => prev.map(b => b.id === payload.new.id ? { ...b, ...payload.new } : b))
+      }
+    })
+    return () => {
+      channel.unsubscribe && channel.unsubscribe()
+    }
+  }, [])
   const [searchTerm, setSearchTerm] = useState("")
   const [bookings, setBookings] = useState([
     {
