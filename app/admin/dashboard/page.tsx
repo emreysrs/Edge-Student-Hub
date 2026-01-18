@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { subscribeToBookings } from "@/lib/bookings-realtime"
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { createBooking } from "@/lib/bookings"
+import { createBooking, getAllBookings, updateBookingStatus, deleteBooking } from "@/lib/bookings"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -38,7 +38,13 @@ import {
 } from "lucide-react"
 
 export default function AdminDashboard() {
+  const [searchTerm, setSearchTerm] = useState("")
+  const [bookings, setBookings] = useState<any[]>([])
   useEffect(() => {
+    // Supabase'den rezervasyonları çek
+    getAllBookings().then(({ data, error }) => {
+      if (data) setBookings(data)
+    })
     // Supabase realtime ile bookings tablosunu dinle
     const channel = subscribeToBookings((payload) => {
       if (payload.eventType === 'INSERT') {
@@ -53,59 +59,6 @@ export default function AdminDashboard() {
       channel.unsubscribe && channel.unsubscribe()
     }
   }, [])
-  const [searchTerm, setSearchTerm] = useState("")
-  const [bookings, setBookings] = useState([
-    {
-      id: 1,
-      name: "Sarah Johnson",
-      email: "sarah.j@email.com",
-      phone: "+49 123 456 7890",
-      room: "Single Studio A",
-      checkIn: "2026-02-01",
-      status: "confirmed",
-      amount: "€420/month"
-    },
-    {
-      id: 2,
-      name: "Michael Chen",
-      email: "m.chen@email.com",
-      phone: "+49 234 567 8901",
-      room: "Shared Room B2",
-      checkIn: "2026-02-15",
-      status: "pending",
-      amount: "€280/month"
-    },
-    {
-      id: 3,
-      name: "Emma Schmidt",
-      email: "emma.s@email.com",
-      phone: "+49 345 678 9012",
-      room: "Premium Studio",
-      checkIn: "2026-01-25",
-      status: "confirmed",
-      amount: "€520/month"
-    },
-    {
-      id: 4,
-      name: "Lucas Weber",
-      email: "lucas.w@email.com",
-      phone: "+49 456 789 0123",
-      room: "Shared Room A1",
-      checkIn: "2026-03-01",
-      status: "pending",
-      amount: "€280/month"
-    },
-    {
-      id: 5,
-      name: "Sophie Martinez",
-      email: "sophie.m@email.com",
-      phone: "+49 567 890 1234",
-      room: "Single Studio B",
-      checkIn: "2026-02-10",
-      status: "cancelled",
-      amount: "€420/month"
-    }
-  ])
   const [open, setOpen] = useState(false)
   const [newBooking, setNewBooking] = useState({
     name: "",
@@ -154,25 +107,29 @@ export default function AdminDashboard() {
     }
   ]
 
-  const handleApprove = (bookingId: number) => {
-    setBookings(bookings.map(booking => 
-      booking.id === bookingId ? { ...booking, status: "confirmed" } : booking
-    ))
-    toast({
-      title: "Booking Approved",
-      description: "The booking has been confirmed successfully.",
-    })
+  const handleApprove = async (bookingId: string) => {
+    const { error } = await updateBookingStatus(bookingId, "confirmed")
+    if (!error) {
+      toast({
+        title: "Booking Approved",
+        description: "The booking has been confirmed successfully.",
+      })
+    } else {
+      toast({ title: "Hata", description: error, variant: "destructive" })
+    }
   }
 
-  const handleReject = (bookingId: number) => {
-    setBookings(bookings.map(booking => 
-      booking.id === bookingId ? { ...booking, status: "cancelled" } : booking
-    ))
-    toast({
-      title: "Booking Rejected",
-      description: "The booking has been cancelled.",
-      variant: "destructive"
-    })
+  const handleReject = async (bookingId: string) => {
+    const { error } = await updateBookingStatus(bookingId, "cancelled")
+    if (!error) {
+      toast({
+        title: "Booking Rejected",
+        description: "The booking has been cancelled.",
+        variant: "destructive"
+      })
+    } else {
+      toast({ title: "Hata", description: error, variant: "destructive" })
+    }
   }
 
   const handleViewDetails = (bookingId: number) => {
@@ -183,13 +140,17 @@ export default function AdminDashboard() {
     })
   }
 
-  const handleDelete = (bookingId: number) => {
-    setBookings(bookings.filter(booking => booking.id !== bookingId))
-    toast({
-      title: "Booking Deleted",
-      description: "The booking has been removed from the system.",
-      variant: "destructive"
-    })
+  const handleDelete = async (bookingId: string) => {
+    const { error } = await deleteBooking(bookingId)
+    if (!error) {
+      toast({
+        title: "Booking Deleted",
+        description: "The booking has been removed from the system.",
+        variant: "destructive"
+      })
+    } else {
+      toast({ title: "Hata", description: error, variant: "destructive" })
+    }
   }
 
   const getStatusBadge = (status: string) => {
@@ -233,7 +194,6 @@ export default function AdminDashboard() {
         toast({ title: "Hata", description: error, variant: "destructive" })
       } else {
         toast({ title: "Başarılı", description: "Yeni rezervasyon eklendi!" })
-        setBookings([...bookings, { ...newBooking, id: Date.now() }])
         setOpen(false)
         setNewBooking({ name: "", email: "", phone: "", room: "", checkIn: "", status: "pending", amount: "" })
       }
